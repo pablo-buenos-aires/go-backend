@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    image: go-backend-dockerimage:latest
+    container_name: go-backend-dockercontainer
+    env_file: # load variables from .env file
+      - .env
+    ports:
+      - "${APP_PORT:-8080}:${APP_PORT:-8080}" # если APP_PORT не задан, по умолчанию 8080
+    environment:
+      DB_HOST: "host.docker.internal" # override .env for containers to reach host DB
+    restart: unless-stopped
