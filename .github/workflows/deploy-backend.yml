@@ -32,7 +32,8 @@ jobs:
  
     - name: Build, tag, and push image to  Amazon ECR
       run: |
-        docker build --build-arg APP_PORT=$APP_PORT -t $ECR_REPO:$IMAGE_TAG .        docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest
+        docker build --build-arg APP_PORT=$APP_PORT -t $ECR_REPO:$IMAGE_TAG .
+        docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest
         docker push $ECR_REPO:$IMAGE_TAG
         docker push $ECR_REPO:latest
 
