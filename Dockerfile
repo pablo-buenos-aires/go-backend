@@ -31,8 +31,10 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # Копируем бинарник из builder'а во второй стэйдж
 COPY --from=builder /server /server
-ENV APP_PORT=8080
-EXPOSE 8080
+
+ARG APP_PORT=8080
+ENV APP_PORT=${APP_PORT}
+EXPOSE ${APP_PORT}
 
 # Запуск сервиса
 ENTRYPOINT ["/server"]
