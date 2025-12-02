@@ -11,6 +11,7 @@ jobs:
     env:
         ECR_REPO: ${{ vars.ECR_REPO }}  
         IMAGE_TAG: v${{ github.run_number }}
+        APP_PORT: ${{ vars.APP_PORT }}
 
     runs-on: ubuntu-latest
     
@@ -31,13 +32,13 @@ jobs:
  
     - name: Build, tag, and push image to  Amazon ECR
       run: |
-        docker build -t $ECR_REPO:$IMAGE_TAG .
-        docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest
+        docker build --build-arg APP_PORT=$APP_PORT -t $ECR_REPO:$IMAGE_TAG .        docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest
         docker push $ECR_REPO:$IMAGE_TAG
         docker push $ECR_REPO:latest
 
     - name: Output image details
       run: |
-        echo "Image pushed to ECR"
-        echo "Repository: $ECR_REPO"
-        echo "Image Tag: $IMAGE_TAG"
+        echo "--- APP_PORT $APP_PORT"
+        echo "--- Image pushed to ECR"
+        echo "--- Repository: $ECR_REPO"
+        echo "--- Image Tag: $IMAGE_TAG"
