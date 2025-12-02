@@ -27,9 +27,9 @@ jobs:
 
     - name: Login to Amazon ECR/ Сохраняет результат под id login-ecr
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v4
+      uses: aws-actions/amazon-ecr-login@v1
  
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Build, tag, and push image to  Amazon ECR
       run: |
         docker build -t $ECR_REPO:$IMAGE_TAG .
         docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest
