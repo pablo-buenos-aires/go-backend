@@ -32,13 +32,13 @@ import (
 func main() {
 	// Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		log.Println("No .env file found, значения будут браться из окружения")
 	}
 
 	// Инициализация БД
 	db, err := InitDB()
 	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+		log.Fatalf("Failed to initialize database %q: %v", os.Getenv("DB_NAME"), err)
 	}
 	defer db.Close() // по завершению функции выполнится
 
@@ -524,7 +524,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.corsMiddleware)
 
 	// Public health endpoint
-	s.router.HandleFunc("/api/health", s.healthCheck).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/health", s.healthCheck).Methods("GET", "OPTIONS")
 
 	// Authenticated API routes
 	api := s.router.PathPrefix("/api").Subrouter()
