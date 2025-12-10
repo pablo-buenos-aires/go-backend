@@ -1,0 +1,36 @@
+{
+  "family": "backend-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::836940249137:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::836940249137:role/ecsAppTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "backend-container",
+      "image": "zaglushka",                    
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8080, "hostPort": 8080, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "DB_HOST", "value": "<db-host>" },
+        { "name": "DB_PORT", "value": "<db-port>" }
+      ],
+      "secrets": [
+        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:...:secret:...:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:...:secret:...:password::" },
+        { "name": "DB_NAME", "valueFrom": "arn:aws:secretsmanager:...:secret:...:dbname::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/backend",
+          "awslogs-region": "sa-east-1",
+          "awslogs-stream-prefix": "go-backend-"
+        }
+      }
+    }
+  ]
+}
