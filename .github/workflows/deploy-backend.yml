@@ -41,7 +41,7 @@ jobs:
         docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest 
         docker push $ECR_REPO:$IMAGE_TAG
         docker push $ECR_REPO:latest
-        
+
     - name: Output image details
       run: |
         echo "--- APP_PORT $APP_PORT"
@@ -70,7 +70,7 @@ jobs:
         echo "--- Rendered task definition path: ${{ steps.render-td.outputs.task-definition }}"
         cat ${{ steps.render-td.outputs.task-definition }}
 
-    - name: Deploy to ECS
+    - name: Deploy  to ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.render-td.outputs.task-definition }}
