@@ -58,7 +58,7 @@ func main() {
 	server := NewServer(db, s3Client, jwtValidator)
 
 	log.Printf("Region -  %s", os.Getenv("AWS_REGION"))
-	log.Printf("PORT (default)-  %s", os.Getenv("PORT"))
+	// log.Printf("PORT (default)-  %s", os.Getenv("PORT"))
 	dir, _ := os.Getwd()
 	log.Println("WORKDIR:", dir)
 
