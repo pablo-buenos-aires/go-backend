@@ -67,7 +67,7 @@ jobs:
 
     - name: Show rendered task definition
       run: |
-        echo "--- Rendered task definition path: ${{ steps.render-td.outputs.task-definition }}"
+        echo "---  Rendered task definition path: ${{ steps.render-td.outputs.task-definition }}"
         cat ${{ steps.render-td.outputs.task-definition }}
 
     - name: Deploy  to ECS
