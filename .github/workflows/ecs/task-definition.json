@@ -15,13 +15,14 @@
         { "containerPort": 8080, "hostPort": 8080, "protocol": "tcp" }
       ],
       "environment": [
-        { "name": "DB_HOST", "value": "<db-host>" },
-        { "name": "DB_PORT", "value": "<db-port>" }
+        { "name": "DB_HOST", "value": "db-host" },
+        { "name": "DB_PORT", "value": "db-port" }
       ],
      "secrets": [
-        { "name": "DB_USER",     "valueFrom": "db-credentials:username::" },
-        { "name": "DB_PASSWORD", "valueFrom": "db-credentials:password::" },
-        { "name": "DB_NAME",     "valueFrom": "db-credentials:dbname::" }
+       
+        { "name": "DB_USER",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:password::" },
+        { "name": "DB_NAME",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:dbname::" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
