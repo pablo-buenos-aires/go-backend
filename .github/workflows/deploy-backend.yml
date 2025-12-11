@@ -44,7 +44,7 @@ jobs:
 
     - name: Output image details
       run: |
-        echo "--- APP_PORT $AP P_PORT"
+        echo "--- APP_PORT $APP_PORT"
         echo "--- Image pushed to ECR"
         echo "--- Repository: $ECR_REPO"
         echo "--- Image Tag: $IMAGE_TAG"
