@@ -15,11 +15,13 @@
         { "containerPort": 8080, "hostPort": 8080, "protocol": "tcp" }
       ],
       "environment": [
-        { "name": "DB_HOST", "value": "db-host" },
-        { "name": "DB_PORT", "value": "db-port" }
+        { "name": "DB_HOST", "value": "db-postgres-id.cnk6oeya6pzp.sa-east-1.rds.amazonaws.com" },
+        { "name": "DB_PORT", "value": "5432" }
       ],
      "secrets": [
-       
+        { "name": "COGNITO_USER_POOL_ID",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:cognitouserpool::" },
+        { "name": "AWS_REGION", "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:awsregion::" },
+
         { "name": "DB_USER",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:username::" },
         { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:password::" },
         { "name": "DB_NAME",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:dbname::" }
