@@ -18,10 +18,10 @@
         { "name": "DB_HOST", "value": "<db-host>" },
         { "name": "DB_PORT", "value": "<db-port>" }
       ],
-      "secrets": [
-        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:...:secret:...:username::" },
-        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:...:secret:...:password::" },
-        { "name": "DB_NAME", "valueFrom": "arn:aws:secretsmanager:...:secret:...:dbname::" }
+     "secrets": [
+        { "name": "DB_USER",     "valueFrom": "db-credentials:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "db-credentials:password::" },
+        { "name": "DB_NAME",     "valueFrom": "db-credentials:dbname::" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
