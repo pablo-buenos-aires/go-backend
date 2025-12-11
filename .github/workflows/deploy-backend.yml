@@ -71,7 +71,7 @@ jobs:
         cat ${{ steps.render-td.outputs.task-definition }}
 
     - name: Deploy  to ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v3
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
         task-definition: ${{ steps.render-td.outputs.task-definition }}
         service: ${{ env.ECS_SERVICE }}
