@@ -26,6 +26,7 @@
         { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:password::" },
         { "name": "DB_NAME",     "valueFrom": "arn:aws:secretsmanager:sa-east-1:836940249137:secret:db_credentials-NtiqzU:dbname::" }
       ],
+      
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
