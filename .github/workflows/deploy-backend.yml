@@ -33,7 +33,7 @@ jobs:
 
     - name: Login to Amazon ECR/ Сохраняет результат  под id login-ecr
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v3
+      uses: aws-actions/amazon-ecr-login@v1
  
     - name: Build, tag, and push image to  Amazon ECR. 
       run: |
@@ -71,7 +71,7 @@ jobs:
         cat ${{ steps.render-td.outputs.task-definition }}
 
     - name: Deploy  to ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v3
       with:
         task-definition: ${{ steps.render-td.outputs.task-definition }}
         service: ${{ env.ECS_SERVICE }}
