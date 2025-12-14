@@ -13,7 +13,7 @@ jobs:
         IMAGE_TAG: v${{ github.run_number }}
         APP_PORT: ${{ vars.APP_PORT }}
 
-        TASK_DEFINITION: task-definition.json         # Путь к файлу после скачивания
+        TASK_DEFINITION: ./task-definition.json         # Путь к файлу после скачивания
         CONTAINER_NAME: backend-container             # = var.container_name
         ECS_CLUSTER: backend-cluster                  # = var.ecs_cluster_name
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
@@ -30,7 +30,7 @@ jobs:
               -o task-definition.json
         echo "Task definition downloaded successfully"
         ls -la task-definition.json  
-        
+
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -65,9 +65,11 @@ jobs:
         echo "--- Target container: $CONTAINER_NAME"
         echo "--- Target ECS service: $ECS_SERVICE"
         echo "--- Target ECS cluster: $ECS_CLUSTER"
-        ls -la "$(dirname "$TASK_DEFINITION")"
+        echo "--- Current directory contents:"
+        ls -la
+        echo "--- Task definition content:"
         cat $TASK_DEFINITION
-
+        
     - name: Render task definition with new image
       id: render-td
       uses: aws-actions/amazon-ecs-render-task-definition@v1
