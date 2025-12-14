@@ -59,6 +59,14 @@ jobs:
         echo "--- Repository: $ECR_REPO"
         echo "--- Image Tag: $IMAGE_TAG"
 
+    - name: Verify task definition still exists
+      run: |
+        echo "--- Current directory: $(pwd)"
+        echo "--- Files in current directory:"
+        ls -la
+        echo "--- Looking for task-definition.json:"
+        find . -name "task-definition.json" -type f 2>/dev/null || echo "File not found!"
+
     - name: Show task definition before render
       run: |
         echo "--- Using task definition: $TASK_DEFINITION"
