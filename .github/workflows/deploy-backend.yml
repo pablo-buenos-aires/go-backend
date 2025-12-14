@@ -13,7 +13,7 @@ jobs:
         IMAGE_TAG: v${{ github.run_number }}
         APP_PORT: ${{ vars.APP_PORT }}
 
-        TASK_DEFINITION: workflows/.github/workflows/ecs/task-definition.json
+        TASK_DEFINITION: task-definition.json         # Путь к файлу после скачивания
         CONTAINER_NAME: backend-container             # = var.container_name
         ECS_CLUSTER: backend-cluster                  # = var.ecs_cluster_name
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
@@ -22,14 +22,15 @@ jobs:
     
     steps:
       # скачиваем с приваиного репозитория файл с определением задачи ECS
-    - name: Checkout workflows repo (task definition source)
-      uses: actions/checkout@v4
-      with:
-        repository: pablo-buenos-aires/workflows
-        ref: main
-        path: workflows-repo
-        token: ${{ secrets.WORKFLOWS_REPO_PAT }}
-
+    - name: Download task definition from private repo
+      run: |
+        curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
+              -o task-definition.json
+        echo "Task definition downloaded successfully"
+        ls -la task-definition.json  
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
