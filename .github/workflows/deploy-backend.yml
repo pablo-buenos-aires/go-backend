@@ -13,7 +13,7 @@ jobs:
         IMAGE_TAG: v${{ github.run_number }}
         APP_PORT: ${{ vars.APP_PORT }}
 
-        TASK_DEFINITION: ./task-definition.json         # Путь к файлу после скачивания
+        TASK_DEFINITION: task-definition.json         # Путь к файлу после скачивания
         CONTAINER_NAME: backend-container             # = var.container_name
         ECS_CLUSTER: backend-cluster                  # = var.ecs_cluster_name
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
@@ -21,7 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # скачиваем с приваиного репозитория файл с определением задачи ECS
+     
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+ # скачиваем с приваиного репозитория файл с определением задачи ECS
     - name: Download task definition from private repo
       run: |
         curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
@@ -30,9 +34,6 @@ jobs:
               -o task-definition.json
         echo "Task definition downloaded successfully"
         ls -la task-definition.json  
-
-    - name: Checkout code
-      uses: actions/checkout@v4
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
