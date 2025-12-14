@@ -13,7 +13,7 @@ jobs:
         IMAGE_TAG: v${{ github.run_number }}
         APP_PORT: ${{ vars.APP_PORT }}
 
-        TASK_DEFINITION: .github/workflows/ecs/task-definition.json
+        TASK_DEFINITION: workflows/.github/workflows/ecs/task-definition.json
         CONTAINER_NAME: backend-container             # = var.container_name
         ECS_CLUSTER: backend-cluster                  # = var.ecs_cluster_name
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
@@ -21,6 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # скачиваем с приваиного репозитория файл с определением задачи ECS
+    - name: Checkout workflows repo (task definition source)
+      uses: actions/checkout@v4
+      with:
+        repository: pablo-buenos-aires/workflows
+        ref: main
+        path: workflows-repo
+        token: ${{ secrets.WORKFLOWS_REPO_PAT }}
+
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -55,6 +64,7 @@ jobs:
         echo "--- Target container: $CONTAINER_NAME"
         echo "--- Target ECS service: $ECS_SERVICE"
         echo "--- Target ECS cluster: $ECS_CLUSTER"
+        ls -la "$(dirname "$TASK_DEFINITION")"
         cat $TASK_DEFINITION
 
     - name: Render task definition with new image
