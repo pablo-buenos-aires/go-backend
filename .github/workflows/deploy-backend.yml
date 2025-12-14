@@ -36,7 +36,7 @@ jobs:
         echo "Task definition downloaded successfully"
         ls -la task-definition.json
         echo "--- Content preview:"
-        head -n 10 task-definition.json
+        head -n 13 task-definition.json
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -86,21 +86,10 @@ jobs:
           echo "--- Updated task definition:"
           cat $TASK_DEFINITION
 
-    - name: Show task definition before render
-      run: |
-        echo "--- Using task definition: $TASK_DEFINITION"
-        echo "--- Target container: $CONTAINER_NAME"
-        echo "--- Target ECS service: $ECS_SERVICE"
-        echo "--- Target ECS cluster: $ECS_CLUSTER"
-        echo "--- Current directory contents:"
-        ls -la
-        echo "--- Task definition content:"
-        cat $TASK_DEFINITION
-    
     - name: Deploy  to ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
-        task-definition: ${{ steps.render-td.outputs.task-definition }}
+        task-definition: ${{ env.TASK_DEFINITION }}
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         wait-for-service-stability: true
