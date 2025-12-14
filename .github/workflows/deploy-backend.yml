@@ -24,8 +24,9 @@ jobs:
      
     - name: Checkout code
       uses: actions/checkout@v4
-      
- # скачиваем с приваиного репозитория файл с определением задачи ECS
+
+ # скачиваем с приваиного репозитория файл с определением задачи ECS,
+ # качаем после скачивания кода, чтобы не перезаписали 
     - name: Download task definition from private repo
       run: |
         curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
@@ -33,7 +34,9 @@ jobs:
               -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
               -o task-definition.json
         echo "Task definition downloaded successfully"
-        ls -la task-definition.json  
+        ls -la task-definition.json
+        echo "--- Content preview:"
+        head -n 10 task-definition.json
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -59,14 +62,29 @@ jobs:
         echo "--- Image pushed to ECR"
         echo "--- Repository: $ECR_REPO"
         echo "--- Image Tag: $IMAGE_TAG"
+        echo "--- Full Image: $ECR_REPO:$IMAGE_TAG"
 
-    - name: Verify task definition still exists
+    - name: Update task definition with new image
       run: |
-        echo "--- Current directory: $(pwd)"
-        echo "--- Files in current directory:"
-        ls -la
-        echo "--- Looking for task-definition.json:"
-        find . -name "task-definition.json" -type f 2>/dev/null || echo "File not found!"
+        NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
+        echo "--- Updating image in task definition"
+        echo "--- Container name: $CONTAINER_NAME"
+        echo "--- New image: $NEW_IMAGE"
+        
+        # Обновляем image для указанного контейнера
+        jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
+          '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
+          $TASK_DEFINITION > task-definition-updated.json
+        
+        # Заменяем оригинальный файл
+        mv task-definition-updated.json $TASK_DEFINITION
+        
+        echo "--- Task definition updated successfully"
+    
+    - name: Show updated task definition
+      run: |
+          echo "--- Updated task definition:"
+          cat $TASK_DEFINITION
 
     - name: Show task definition before render
       run: |
@@ -78,20 +96,7 @@ jobs:
         ls -la
         echo "--- Task definition content:"
         cat $TASK_DEFINITION
-        
-    - name: Render task definition with new image
-      id: render-td
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: ${{ env.TASK_DEFINITION }}
-        container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
-
-    - name: Show rendered task definition
-      run: |
-        echo "---  Rendered task definition path: ${{ steps.render-td.outputs.task-definition }}"
-        cat ${{ steps.render-td.outputs.task-definition }}
-
+    
     - name: Deploy  to ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v2
       with:
