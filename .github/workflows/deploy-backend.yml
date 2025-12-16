@@ -60,10 +60,43 @@ jobs:
       run: |
         echo "--- APP_PORT $APP_PORT"
         echo "--- Image pushed to ECR"
-        echo "--- Repository: $ECR_REPO"
-        echo "--- Image Tag: $IMAGE_TAG"
         echo "--- Full Image: $ECR_REPO:$IMAGE_TAG"
 
+    # - name: Update task definition with new image
+    #   run: |
+    #     NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
+    #     echo "--- Updating image in task definition"
+    #     echo "--- Container name: $CONTAINER_NAME"
+    #     echo "--- New image: $NEW_IMAGE"
+        
+    #     # Обновляем image для указанного контейнера
+    #     # находит контейнер с именем backend-container в массиве containerDefinitions 
+    #     # и обновляет его поле image на новый образ из ECR
+
+    #     jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
+    #       '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
+    #       $TASK_DEFINITION > task-definition-updated.json
+        
+    #     # Заменяем оригинальный файл
+    #     mv task-definition-updated.json $TASK_DEFINITION
+        
+    #     echo "--- Task definition updated successfully"
+    
+    # - name: Show updated task definition
+    #   run: |
+    #       echo "--- Updated task definition:"
+    #       cat $TASK_DEFINITION
+
+    # - name: Deploy  to ECS
+    #   uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+    #   with:
+    #     task-definition: ${{ env.TASK_DEFINITION }}
+    #     service: ${{ env.ECS_SERVICE }}
+    #     cluster: ${{ env.ECS_CLUSTER }}
+    #     wait-for-service-stability: true
+
+    # ----------------------- new update service method -----------------------
+          # ШАГ 1: Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
     - name: Update task definition with new image
       run: |
         NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
@@ -71,25 +104,93 @@ jobs:
         echo "--- Container name: $CONTAINER_NAME"
         echo "--- New image: $NEW_IMAGE"
         
-        # Обновляем image для указанного контейнера
+        # Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
+        # map обрабатывает каждый элемент массива
         jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
-          '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
+          '.containerDefinitions |= map(
+            if .name == $container then 
+              .image = $image 
+            else 
+              . 
+            end
+          )' \
           $TASK_DEFINITION > task-definition-updated.json
         
         # Заменяем оригинальный файл
         mv task-definition-updated.json $TASK_DEFINITION
         
-        echo "--- Task definition updated successfully"
+        echo "✓ Task definition updated successfully"
     
     - name: Show updated task definition
       run: |
           echo "--- Updated task definition:"
           cat $TASK_DEFINITION
-
-    - name: Deploy  to ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-      with:
-        task-definition: ${{ env.TASK_DEFINITION }}
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
+  
+    # ШАГ 3: Обновляем ECS сервис с новой версией task definition
+    - name: Update ECS service
+      run: |
+        echo "--- Updating ECS service: $ECS_SERVICE"
+        echo "--- Cluster: $ECS_CLUSTER"
+        echo "--- Task Definition: $TASK_DEF_ARN"
+        
+        # Обновляем сервис с новой task definition
+        aws ecs update-service \
+          --cluster $ECS_CLUSTER \
+          --service $ECS_SERVICE \
+          --task-definition $TASK_DEF_ARN \
+          --force-new-deployment \
+          --output json > service-update-result.json
+        
+        echo "✓ ECS service update initiated"
+        
+        # Показываем краткую информацию об обновлении
+        echo "--- Service update details:"
+        jq '.service | {
+          serviceName: .serviceName,
+          status: .status,
+          desiredCount: .desiredCount,
+          runningCount: .runningCount,
+          taskDefinition: .taskDefinition
+        }' service-update-result.json
+    # ШАГ 4: Ожидаем стабильности сервиса (деплоймент завершен)
+    - name: Wait for service stability
+      run: |
+        echo "--- Waiting for service to become stable..."
+        echo "--- This may take several minutes depending on your deployment configuration"
+        
+        # Ожидаем пока сервис достигнет стабильного состояния
+        # Timeout по умолчанию: 10 минут (600 секунд)
+        # Проверяет каждые 15 секунд
+        aws ecs wait services-stable \
+          --cluster $ECS_CLUSTER \
+          --services $ECS_SERVICE
+        
+        echo "✓ Service is now stable"
+    
+    # ШАГ 5: Показываем финальный статус сервиса
+    - name: Show final service status
+      run: |
+        echo "--- Final service status:"
+        
+        aws ecs describe-services \
+          --cluster $ECS_CLUSTER \
+          --services $ECS_SERVICE \
+          --query 'services[0] | {
+            serviceName: serviceName,
+            status: status,
+            desiredCount: desiredCount,
+            runningCount: runningCount,
+            taskDefinition: taskDefinition,
+            deployments: deployments[*].{
+              status: status,
+              taskDefinition: taskDefinition,
+              desiredCount: desiredCount,
+              runningCount: runningCount,
+              createdAt: createdAt
+            }
+          }' \
+          --output json | jq .
+        
+        echo "✓ Deployment completed successfully!"
+        echo "--- Image: $ECR_REPO:$IMAGE_TAG"
+        echo "--- Task Definition Revision: $TASK_DEF_REVISION"
