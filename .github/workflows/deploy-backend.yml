@@ -126,12 +126,47 @@ jobs:
           echo "--- Updated task definition:"
           cat $TASK_DEFINITION
   
+       # ШАГ 2: Регистрируем новую версию task definition в ECS
+    - name: Register new task definition revision
+      id: register-task-def
+      run: |
+        echo "--- Registering new task definition revision..."
+        
+        # Регистрируем новую версию task definition и сохраняем результат
+        TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://$TASK_DEFINITION \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+        
+        # Проверяем что ARN получен
+        if [ -z "$TASK_DEF_ARN" ]; then
+          echo "ERROR: Failed to register task definition"
+          exit 1
+        fi
+        
+        echo "✓ New task definition registered"
+        echo "--- Task Definition ARN: $TASK_DEF_ARN"
+        
+        # Сохраняем ARN для использования в следующих шагах
+        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+        
+        # Извлекаем номер ревизии (например: backend-task:42)
+        REVISION=$(echo $TASK_DEF_ARN | rev | cut -d':' -f1 | rev)
+        echo "--- Revision number: $REVISION"
+        echo "TASK_DEF_REVISION=$REVISION" >> $GITHUB_ENV
+    
     # ШАГ 3: Обновляем ECS сервис с новой версией task definition
     - name: Update ECS service
       run: |
         echo "--- Updating ECS service: $ECS_SERVICE"
         echo "--- Cluster: $ECS_CLUSTER"
         echo "--- Task Definition: $TASK_DEF_ARN"
+        
+        # Проверяем что ARN доступен
+        if [ -z "$TASK_DEF_ARN" ]; then
+          echo "ERROR: TASK_DEF_ARN is empty"
+          exit 1
+        fi
         
         # Обновляем сервис с новой task definition
         aws ecs update-service \
@@ -152,6 +187,7 @@ jobs:
           runningCount: .runningCount,
           taskDefinition: .taskDefinition
         }' service-update-result.json
+    
     # ШАГ 4: Ожидаем стабильности сервиса (деплоймент завершен)
     - name: Wait for service stability
       run: |
