@@ -154,8 +154,31 @@ jobs:
         REVISION=$(echo $TASK_DEF_ARN | rev | cut -d':' -f1 | rev)
         echo "--- Revision number: $REVISION"
         echo "TASK_DEF_REVISION=$REVISION" >> $GITHUB_ENV
-    
-    # ШАГ 3: Обновляем ECS сервис с новой версией task definition
+
+# Проверяем существование сервиса
+    - name: Verify ECS service exists
+      run: |
+        echo "--- Verifying ECS service exists..."
+        echo "--- Cluster: $ECS_CLUSTER"
+        echo "--- Service: $ECS_SERVICE"
+        
+        # Проверяем существование сервиса
+        SERVICE_EXISTS=$(aws ecs describe-services \
+          --cluster $ECS_CLUSTER \
+          --services $ECS_SERVICE \
+          --query 'services[0].status' \
+          --output text 2>/dev/null || echo "NOT_FOUND")
+        
+        if [ "$SERVICE_EXISTS" = "NOT_FOUND" ] || [ "$SERVICE_EXISTS" = "None" ]; then
+          echo "ERROR: Service '$ECS_SERVICE' not found in cluster '$ECS_CLUSTER'"
+          echo "--- Available services in cluster:"
+          aws ecs list-services --cluster $ECS_CLUSTER --output table
+          exit 1
+        fi
+        
+        echo "✓ Service found with status: $SERVICE_EXISTS" 
+
+# ШАГ 3: Обновляем ECS сервис с новой версией task definition
     - name: Update ECS service
       run: |
         echo "--- Updating ECS service: $ECS_SERVICE"
