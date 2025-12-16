@@ -201,7 +201,7 @@ jobs:
         
         echo "✓ ECS service update initiated"
         
-        # Показываем краткую информацию об обновлении
+        # Показываем краткую информацию об обновлении 
         echo "--- Service update details:"
         jq '.service | {
           serviceName: .serviceName,
