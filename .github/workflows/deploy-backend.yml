@@ -6,8 +6,33 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        #with:
+        #  fetch-depth: 0
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Test with coverage
+        run: |
+          set -e
+          go test ./... -coverprofile=coverage.out
+          test -f coverage.out
+
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [quality]   # <-- ДЕПЛОЙ ТОЛЬКО ПОСЛЕ QUALITY
     env:
         ECR_REPO: ${{ vars.ECR_REPO }}  
         IMAGE_TAG: v${{ github.run_number }}
@@ -25,7 +50,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
- # скачиваем с приваиного репозитория файл с определением задачи ECS,
+ # -----------------  Покрытие тестами кода  
+    - name: Test with coverage
+      run: |
+        set -e
+        go test ./... -coverprofile=coverage.out || exit 1
+        test -f coverage.out || echo "coverage.out was not created"       
+        - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_REGION }}
+ 
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+# скачиваем с приваиного репозитория файл с определением задачи ECS,
  # качаем после скачивания кода, чтобы не перезаписали 
     - name: Download task definition from private repo
       run: |
@@ -37,14 +80,7 @@ jobs:
         ls -la task-definition.json
         echo "--- Content preview:"
         head -n 13 task-definition.json
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
+ # -----------------  Логин в ECR, сборка и пуш образа
     - name: Login to Amazon ECR/ Сохраняет результат  под id login-ecr
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
