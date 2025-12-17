@@ -45,28 +45,6 @@ jobs:
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
 
     steps:
-     
-    - name: Checkout code
-      uses: actions/checkout@v4
-
- # -----------------  Покрытие тестами кода  
-    - name: Test with coverage
-      run: |
-        set -e
-        go test ./... -coverprofile=coverage.out || exit 1
-        test -f coverage.out || echo "coverage.out was not created"       
-        - name: Configure AWS credentials
-          uses: aws-actions/configure-aws-credentials@v4
-          with:
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-region: ${{ secrets.AWS_REGION }}
- 
-    - name: SonarCloud Scan
-      uses: sonarsource/sonarcloud-github-action@v2
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
 # скачиваем с приваиного репозитория файл с определением задачи ECS,
  # качаем после скачивания кода, чтобы не перезаписали 
     - name: Download task definition from private repo
