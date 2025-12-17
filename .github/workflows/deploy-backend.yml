@@ -45,8 +45,11 @@ jobs:
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
 
     steps:
-# скачиваем с приваиного репозитория файл с определением задачи ECS,
- # качаем после скачивания кода, чтобы не перезаписали 
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+    # скачиваем с приваиного репозитория файл с определением задачи ECS,
+  # качаем после скачивания кода, чтобы не перезаписали 
     - name: Download task definition from private repo
       run: |
         curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
