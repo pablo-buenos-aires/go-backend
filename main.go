@@ -431,7 +431,7 @@ func (s *S3Client) GeneratePresignedURL(ctx context.Context, userSub, fileName, 
 	)
 
 	log.Printf("[PRESIGNED] Generated URL for user: %s, file: %s", userSub, fileName)
-
+	log.Printf("Photo URL %s", photoURL)
 	return &PresignedURLResponse{
 		UploadURL: presignedReq.URL,
 		PhotoURL:  photoURL,
