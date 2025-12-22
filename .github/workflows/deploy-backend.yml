@@ -14,26 +14,33 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        #with:
-        #  fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: pablo-buenos-aires/workflow-actions/quality@main
         with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
           go-version: "1.22"
 
-      - name: Test with coverage
-        run: |
-          set -e
-          go test ./... -coverprofile=coverage.out
-          test -f coverage.out
+    # runs-on: ubuntu-latest
+    # steps:
+    #   - name: Checkout code
+    #     uses: actions/checkout@v4
+    #     #with:
+    #     #  fetch-depth: 0
 
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    #   - name: Setup Go
+    #     uses: actions/setup-go@v5
+    #     with:
+    #       go-version: "1.22"
+
+    #   - name: Test with coverage
+    #     run: |
+    #       set -e
+    #       go test ./... -coverprofile=coverage.out
+    #       test -f coverage.out
+
+    #   - name: SonarCloud Scan
+    #     uses: sonarsource/sonarcloud-github-action@v2
+    #     env:
+    #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   deploy: 
     runs-on: ubuntu-latest
@@ -49,240 +56,223 @@ jobs:
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
 
     steps:
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-    # скачиваем с приваиного репозитория файл с определением задачи ECS,
+    - uses: actions/checkout@v4
+  # скачиваем с приваиного репозитория файл с определением задачи ECS,
   # качаем после скачивания кода, чтобы не перезаписали 
-    - name: Download task definition from private repo
-      run: |
-        curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
-              -H "Accept: application/vnd.github.v3.raw" \
-              -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
-              -o task-definition.json
-        echo "Task definition downloaded successfully"
-        ls -la task-definition.json
-        echo "--- Content preview:"
-        head -n 13 task-definition.json
+    - uses: pablo-buenos-aires/workflow-actions/download-taskdef@main
+      with:
+        github-token: ${{ secrets.WORKFLOWS_REPO_PAT }}
+        taskdef-url: https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json
+  #      output: ${{ env.TASK_DEFINITION }}
 
-    - name: Configure AWS credentials (OIDC)
-      uses: aws-actions/configure-aws-credentials@v4
+    # - name: Download task definition from private repo
+    #   run: |
+    #     curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
+    #           -H "Accept: application/vnd.github.v3.raw" \
+    #           -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
+    #           -o task-definition.json
+    #     echo "Task definition downloaded successfully"
+    #     ls -la task-definition.json
+    #     echo "--- Content preview:"
+    #     head -n 13 task-definition.json
+
+    # Configure AWS credentials (OIDC)
+    - uses: pablo-buenos-aires/workflow-actions/actions/aws-oidc-creds@main
       with:
         role-to-assume: arn:aws:iam::836940249137:role/gitHubActionsDeployRole
         aws-region: sa-east-1
- # -----------------  Логин в ECR, сборка и пуш образа
-    # - name: Configure AWS credentials
+  
+    # - name: Configure AWS credentials (OIDC)
     #   uses: aws-actions/configure-aws-credentials@v4
     #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
-        
-    - name: Login to Amazon ECR/ Сохраняет результат  под id login-ecr
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+    #     role-to-assume: arn:aws:iam::836940249137:role/gitHubActionsDeployRole
+    #     aws-region: sa-east-1
+
+    - uses: pablo-buenos-aires/workflow-actions/actions/ecr-build-push@main
+      with:
+          ecr-repo: ${{ env.ECR_REPO }}
+          image-tag: ${{ env.IMAGE_TAG }}
+          app-port: ${{ env.APP_PORT }}
+
+    # ----------------------- old build and push method -----------------------
+    # - name: Login to Amazon ECR/ Сохраняет результат  под id login-ecr
+    #   id: login-ecr
+    #   uses: aws-actions/amazon-ecr-login@v1
  
-    - name: Build, tag, and push image to  Amazon ECR. 
-      run: |
-        docker build --build-arg APP_PORT=$APP_PORT -t $ECR_REPO:$IMAGE_TAG .
-        docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest 
-        docker push $ECR_REPO:$IMAGE_TAG
-        docker push $ECR_REPO:latest
-
-    - name: Output image details
-      run: |
-        echo "--- APP_PORT $APP_PORT"
-        echo "--- Image pushed to ECR"
-        echo "--- Full Image: $ECR_REPO:$IMAGE_TAG"
-
-    # - name: Update task definition with new image
+    # - name: Build, tag, and push image to  Amazon ECR. 
     #   run: |
-    #     NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
-    #     echo "--- Updating image in task definition"
-    #     echo "--- Container name: $CONTAINER_NAME"
-    #     echo "--- New image: $NEW_IMAGE"
-        
-    #     # Обновляем image для указанного контейнера
-    #     # находит контейнер с именем backend-container в массиве containerDefinitions 
-    #     # и обновляет его поле image на новый образ из ECR
+    #     docker build --build-arg APP_PORT=$APP_PORT -t $ECR_REPO:$IMAGE_TAG .
+    #     docker tag $ECR_REPO:$IMAGE_TAG $ECR_REPO:latest 
+    #     docker push $ECR_REPO:$IMAGE_TAG
+    #     docker push $ECR_REPO:latest
 
-    #     jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
-    #       '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
-    #       $TASK_DEFINITION > task-definition-updated.json
-        
-    #     # Заменяем оригинальный файл
-    #     mv task-definition-updated.json $TASK_DEFINITION
-        
-    #     echo "--- Task definition updated successfully"
-    
-    # - name: Show updated task definition
+    # - name: Output image details
     #   run: |
-    #       echo "--- Updated task definition:"
-    #       cat $TASK_DEFINITION
-
-    # - name: Deploy  to ECS
-    #   uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-    #   with:
-    #     task-definition: ${{ env.TASK_DEFINITION }}
-    #     service: ${{ env.ECS_SERVICE }}
-    #     cluster: ${{ env.ECS_CLUSTER }}
-    #     wait-for-service-stability: true
-
-    # ----------------------- new update service method -----------------------
-          # ШАГ 1: Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
-    - name: Update task definition with new image
-      run: |
-        NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
-        echo "--- Updating image in task definition"
-        echo "--- Container name: $CONTAINER_NAME"
-        echo "--- New image: $NEW_IMAGE"
+    #     echo "--- APP_PORT $APP_PORT"
+    #     echo "--- Image pushed to ECR"
+    #     echo "--- Full Image: $ECR_REPO:$IMAGE_TAG"
+    - uses: pablo-buenos-aires/workflow-actions/actions/ecs-deploy@main
+      with:
+        task-definition: ${{ env.TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        new-image: ${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
+        ecs-cluster: ${{ env.ECS_CLUSTER }}
+        ecs-service: ${{ env.ECS_SERVICE }}
+    # ----------------------- old update service method -----------------------
+    # Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
+#     - name: Update task definition with new image
+#       run: |
+#         NEW_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
+#         echo "--- Updating image in task definition"
+#         echo "--- Container name: $CONTAINER_NAME"
+#         echo "--- New image: $NEW_IMAGE"
         
-        # Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
-        # map обрабатывает каждый элемент массива
-        jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
-          '.containerDefinitions |= map(
-            if .name == $container then 
-              .image = $image 
-            else 
-              . 
-            end
-          )' \
-          $TASK_DEFINITION > task-definition-updated.json
+#         # Обновляем image для ВСЕХ контейнеров с именем $CONTAINER_NAME
+#         # map обрабатывает каждый элемент массива
+#         jq --arg container "$CONTAINER_NAME" --arg image "$NEW_IMAGE" \
+#           '.containerDefinitions |= map(
+#             if .name == $container then 
+#               .image = $image 
+#             else 
+#               . 
+#             end
+#           )' \
+#           $TASK_DEFINITION > task-definition-updated.json
         
-        # Заменяем оригинальный файл
-        mv task-definition-updated.json $TASK_DEFINITION
+#         # Заменяем оригинальный файл
+#         mv task-definition-updated.json $TASK_DEFINITION
         
-        echo "✓ Task definition updated successfully"
+#         echo "✓ Task definition updated successfully"
     
-    - name: Show updated task definition
-      run: |
-          echo "--- Updated task definition:"
-          cat $TASK_DEFINITION
+#     - name: Show updated task definition
+#       run: |
+#           echo "--- Updated task definition:"
+#           cat $TASK_DEFINITION
   
-       # ШАГ 2: Регистрируем новую версию task definition в ECS
-    - name: Register new task definition revision
-      id: register-task-def
-      run: |
-        echo "--- Registering new task definition revision..."
+#        # ШАГ 2: Регистрируем новую версию task definition в ECS
+#     - name: Register new task definition revision
+#       id: register-task-def
+#       run: |
+#         echo "--- Registering new task definition revision..."
         
-        # Регистрируем новую версию task definition и сохраняем результат
-        TASK_DEF_ARN=$(aws ecs register-task-definition \
-          --cli-input-json file://$TASK_DEFINITION \
-          --query 'taskDefinition.taskDefinitionArn' \
-          --output text)
+#         # Регистрируем новую версию task definition и сохраняем результат
+#         TASK_DEF_ARN=$(aws ecs register-task-definition \
+#           --cli-input-json file://$TASK_DEFINITION \
+#           --query 'taskDefinition.taskDefinitionArn' \
+#           --output text)
         
-        # Проверяем что ARN получен
-        if [ -z "$TASK_DEF_ARN" ]; then
-          echo "ERROR: Failed to register task definition"
-          exit 1
-        fi
+#         # Проверяем что ARN получен
+#         if [ -z "$TASK_DEF_ARN" ]; then
+#           echo "ERROR: Failed to register task definition"
+#           exit 1
+#         fi
         
-        echo "✓ New task definition registered"
-        echo "--- Task Definition ARN: $TASK_DEF_ARN"
+#         echo "✓ New task definition registered"
+#         echo "--- Task Definition ARN: $TASK_DEF_ARN"
         
-        # Сохраняем ARN для использования в следующих шагах
-        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+#         # Сохраняем ARN для использования в следующих шагах
+#         echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
         
-        # Извлекаем номер ревизии (например: backend-task:42)
-        REVISION=$(echo $TASK_DEF_ARN | rev | cut -d':' -f1 | rev)
-        echo "--- Revision number: $REVISION"
-        echo "TASK_DEF_REVISION=$REVISION" >> $GITHUB_ENV
+#         # Извлекаем номер ревизии (например: backend-task:42)
+#         REVISION=$(echo $TASK_DEF_ARN | rev | cut -d':' -f1 | rev)
+#         echo "--- Revision number: $REVISION"
+#         echo "TASK_DEF_REVISION=$REVISION" >> $GITHUB_ENV
 
-# Проверяем существование сервиса
-    - name: Verify ECS service exists
-      run: |
-        echo "--- Verifying ECS service exists..."
-        echo "--- Cluster: $ECS_CLUSTER"
-        echo "--- Service: $ECS_SERVICE"
+# # Проверяем существование сервиса
+#     - name: Verify ECS service exists
+#       run: |
+#         echo "--- Verifying ECS service exists..."
+#         echo "--- Cluster: $ECS_CLUSTER"
+#         echo "--- Service: $ECS_SERVICE"
         
-        # Проверяем существование сервиса
-        SERVICE_EXISTS=$(aws ecs describe-services \
-          --cluster $ECS_CLUSTER \
-          --services $ECS_SERVICE \
-          --query 'services[0].status' \
-          --output text 2>/dev/null || echo "NOT_FOUND")
+#         # Проверяем существование сервиса
+#         SERVICE_EXISTS=$(aws ecs describe-services \
+#           --cluster $ECS_CLUSTER \
+#           --services $ECS_SERVICE \
+#           --query 'services[0].status' \
+#           --output text 2>/dev/null || echo "NOT_FOUND")
         
-        if [ "$SERVICE_EXISTS" = "NOT_FOUND" ] || [ "$SERVICE_EXISTS" = "None" ]; then
-          echo "ERROR: Service '$ECS_SERVICE' not found in cluster '$ECS_CLUSTER'"
-          echo "--- Available services in cluster:"
-          aws ecs list-services --cluster $ECS_CLUSTER --output table
-          exit 1
-        fi
+#         if [ "$SERVICE_EXISTS" = "NOT_FOUND" ] || [ "$SERVICE_EXISTS" = "None" ]; then
+#           echo "ERROR: Service '$ECS_SERVICE' not found in cluster '$ECS_CLUSTER'"
+#           echo "--- Available services in cluster:"
+#           aws ecs list-services --cluster $ECS_CLUSTER --output table
+#           exit 1
+#         fi
         
-        echo "✓ Service found with status: $SERVICE_EXISTS" 
+#         echo "✓ Service found with status: $SERVICE_EXISTS" 
 
-# ШАГ 3: Обновляем ECS сервис с новой версией task definition
-    - name: Update ECS service
-      run: |
-        echo "--- Updating ECS service: $ECS_SERVICE"
-        echo "--- Cluster: $ECS_CLUSTER"
-        echo "--- Task Definition: $TASK_DEF_ARN"
+# # ШАГ 3: Обновляем ECS сервис с новой версией task definition
+#     - name: Update ECS service
+#       run: |
+#         echo "--- Updating ECS service: $ECS_SERVICE"
+#         echo "--- Cluster: $ECS_CLUSTER"
+#         echo "--- Task Definition: $TASK_DEF_ARN"
         
-        # Проверяем что ARN доступен
-        if [ -z "$TASK_DEF_ARN" ]; then
-          echo "ERROR: TASK_DEF_ARN is empty"
-          exit 1
-        fi
+#         # Проверяем что ARN доступен
+#         if [ -z "$TASK_DEF_ARN" ]; then
+#           echo "ERROR: TASK_DEF_ARN is empty"
+#           exit 1
+#         fi
         
-        # Обновляем сервис с новой task definition
-        aws ecs update-service \
-          --cluster $ECS_CLUSTER \
-          --service $ECS_SERVICE \
-          --task-definition $TASK_DEF_ARN \
-          --force-new-deployment \
-          --output json > service-update-result.json
+#         # Обновляем сервис с новой task definition
+#         aws ecs update-service \
+#           --cluster $ECS_CLUSTER \
+#           --service $ECS_SERVICE \
+#           --task-definition $TASK_DEF_ARN \
+#           --force-new-deployment \
+#           --output json > service-update-result.json
         
-        echo "✓ ECS service update initiated"
+#         echo "✓ ECS service update initiated"
         
-        # Показываем краткую информацию об обновлении 
-        echo "--- Service update details:"
-        jq '.service | {
-          serviceName: .serviceName,
-          status: .status,
-          desiredCount: .desiredCount,
-          runningCount: .runningCount,
-          taskDefinition: .taskDefinition
-        }' service-update-result.json
+#         # Показываем краткую информацию об обновлении 
+#         echo "--- Service update details:"
+#         jq '.service | {
+#           serviceName: .serviceName,
+#           status: .status,
+#           desiredCount: .desiredCount,
+#           runningCount: .runningCount,
+#           taskDefinition: .taskDefinition
+#         }' service-update-result.json
     
-    # ШАГ 4: Ожидаем стабильности сервиса (деплоймент завершен)
-    - name: Wait for service stability
-      run: |
-        echo "--- Waiting for service to become stable..."
-        echo "--- This may take several minutes depending on your deployment configuration"
+#     # ШАГ 4: Ожидаем стабильности сервиса (деплоймент завершен)
+#     - name: Wait for service stability
+#       run: |
+#         echo "--- Waiting for service to become stable..."
+#         echo "--- This may take several minutes depending on your deployment configuration"
         
-        # Ожидаем пока сервис достигнет стабильного состояния
-        # Timeout по умолчанию: 10 минут (600 секунд)
-        # Проверяет каждые 15 секунд
-        aws ecs wait services-stable \
-          --cluster $ECS_CLUSTER \
-          --services $ECS_SERVICE
+#         # Ожидаем пока сервис достигнет стабильного состояния
+#         # Timeout по умолчанию: 10 минут (600 секунд)
+#         # Проверяет каждые 15 секунд
+#         aws ecs wait services-stable \
+#           --cluster $ECS_CLUSTER \
+#           --services $ECS_SERVICE
         
-        echo "✓ Service is now stable"
+#         echo "✓ Service is now stable"
     
-    # ШАГ 5: Показываем финальный статус сервиса
-    - name: Show final service status
-      run: |
-        echo "--- Final service status:"
+#     # ШАГ 5: Показываем финальный статус сервиса
+#     - name: Show final service status
+#       run: |
+#         echo "--- Final service status:"
         
-        aws ecs describe-services \
-          --cluster $ECS_CLUSTER \
-          --services $ECS_SERVICE \
-          --query 'services[0] | {
-            serviceName: serviceName,
-            status: status,
-            desiredCount: desiredCount,
-            runningCount: runningCount,
-            taskDefinition: taskDefinition,
-            deployments: deployments[*].{
-              status: status,
-              taskDefinition: taskDefinition,
-              desiredCount: desiredCount,
-              runningCount: runningCount,
-              createdAt: createdAt
-            }
-          }' \
-          --output json | jq .
+#         aws ecs describe-services \
+#           --cluster $ECS_CLUSTER \
+#           --services $ECS_SERVICE \
+#           --query 'services[0] | {
+#             serviceName: serviceName,
+#             status: status,
+#             desiredCount: desiredCount,
+#             runningCount: runningCount,
+#             taskDefinition: taskDefinition,
+#             deployments: deployments[*].{
+#               status: status,
+#               taskDefinition: taskDefinition,
+#               desiredCount: desiredCount,
+#               runningCount: runningCount,
+#               createdAt: createdAt
+#             }
+#           }' \
+#           --output json | jq .
         
-        echo "✓ Deployment completed successfully!"
-        echo "--- Image: $ECR_REPO:$IMAGE_TAG"
-        echo "--- Task Definition Revision: $TASK_DEF_REVISION"
+#         echo "✓ Deployment completed successfully!"
+#         echo "--- Image: $ECR_REPO:$IMAGE_TAG"
+#         echo "--- Task Definition Revision: $TASK_DEF_REVISION"
