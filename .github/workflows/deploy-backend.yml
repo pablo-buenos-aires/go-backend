@@ -44,7 +44,7 @@ jobs:
   #       taskdef-url: https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json
   # #      output: ${{ env.TASK_DEFINITION }}
 
-    - name: Download task definition from private repo
+    - name: Download task definition from pr ivate repo
       run: |
         curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
               -H "Accept: application/vnd.github.v3.raw" \
