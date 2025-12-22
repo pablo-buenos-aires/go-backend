@@ -85,7 +85,7 @@ jobs:
     #     docker push $ECR_REPO:$IMAGE_TAG
     #     docker push $ECR_REPO:latest
 
-    # - name: Output image details
+    # - name: Output image details 
     #   run: |
     #     echo "--- APP_PORT $APP_PORT"
     #     echo "--- Image pushed to ECR"
