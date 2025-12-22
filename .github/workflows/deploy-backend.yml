@@ -35,7 +35,7 @@ jobs:
         ECS_SERVICE: ecs-service                      # = var.ecs_service_name
 
     steps:
-    - uses: actions/checkout@v4
+  #  - uses: actions/checkout@v4
   # скачиваем с приваиного репозитория файл с определением задачи ECS,
   # качаем после скачивания кода, чтобы не перезаписали 
   #   - uses: pablo-buenos-aires/workflow-actions/download-taskdef@main
