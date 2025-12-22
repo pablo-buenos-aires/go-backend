@@ -67,7 +67,7 @@ jobs:
     #     role-to-assume: arn:aws:iam::836940249137:role/gitHubActionsDeployRole
     #     aws-region: sa-east-1
 
-    - uses: pablo-buenos-aires/workflow-actions//ecr-build-push@main
+    - uses: pablo-buenos-aires/workflow-actions/ecr-build-push@main
       with:
           ecr-repo: ${{ env.ECR_REPO }}
           image-tag: ${{ env.IMAGE_TAG }}
