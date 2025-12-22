@@ -38,22 +38,22 @@ jobs:
     - uses: actions/checkout@v4
   # скачиваем с приваиного репозитория файл с определением задачи ECS,
   # качаем после скачивания кода, чтобы не перезаписали 
-    - uses: pablo-buenos-aires/workflow-actions/download-taskdef@main
-      with:
-        github-token: ${{ secrets.WORKFLOWS_REPO_PAT }}
-        taskdef-url: https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json
-  #      output: ${{ env.TASK_DEFINITION }}
+  #   - uses: pablo-buenos-aires/workflow-actions/download-taskdef@main
+  #     with:
+  #       github-token: ${{ secrets.WORKFLOWS_REPO_PAT }}
+  #       taskdef-url: https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json
+  # #      output: ${{ env.TASK_DEFINITION }}
 
-    # - name: Download task definition from pr ivate repo
-    #   run: |
-    #     curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
-    #           -H "Accept: application/vnd.github.v3.raw" \
-    #           -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
-    #           -o task-definition.json
-    #     echo "Task definition downloaded successfully"
-    #     ls -la task-definition.json
-    #     echo "--- Content preview:"
-    #     head -n 13 task-definition.json
+    - name: Download task definition from pr ivate repo
+      run: |
+        curl -H "Authorization: token ${{ secrets.WORKFLOWS_REPO_PAT }}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              -L https://api.github.com/repos/pablo-buenos-aires/workflows/contents/.github/workflows/backend/ecs/task-definition.json \
+              -o task-definition.json
+        echo "Task definition downloaded successfully"
+        ls -la task-definition.json
+        echo "--- Content preview:"
+        head -n 13 task-definition.json
 
     # Configure AWS credentials (OIDC)
     - uses: pablo-buenos-aires/workflow-actions/aws-oidc-creds@main
