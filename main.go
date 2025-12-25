@@ -26,6 +26,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
+	"github.com/aws/aws-xray-sdk-go/xray"
+
 	_ "github.com/lib/pq" // <-- ВАЖНО: регистрируем драйвер postgres
 )
 
@@ -579,17 +581,33 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value("claims").(*CognitoClaims)
-	log.Println("GetProfile call")
-	user, err := GetOrCreateUser(s.db, claims.Sub)
-	if err != nil {
-		s.sendError(w, "Failed to get user profile", http.StatusInternalServerError)
-		return
-	}
+	ctx := r.Context()
+	claims := ctx.Value("claims").(*CognitoClaims)
 
-	s.sendJSON(w, user, http.StatusOK)
+	_ = xray.Capture(ctx, "GetProfile", func(ctx context.Context) error {
+		// индексируемая метка
+		xray.AddAnnotation(ctx, "op", "get_profile")
+
+		log.Println("GetProfile call")
+
+		var user *User
+		err := xray.Capture(ctx, "DB:GetOrCreateUser", func(ctx context.Context) error {
+			u, err := GetOrCreateUser(s.db, claims.Sub)
+			if err != nil {
+				return err
+			}
+			user = u
+			return nil
+		}) // end capture
+		if err != nil {
+			s.sendError(w, "Failed to get user profile", http.StatusInternalServerError)
+			return nil
+		}
+
+		s.sendJSON(w, user, http.StatusOK)
+		return nil
+	}) // end capture
 }
-
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value("claims").(*CognitoClaims)
 	log.Println("UpdateProfile call")
@@ -631,7 +649,10 @@ func (s *Server) sendError(w http.ResponseWriter, message string, status int) {
 }
 
 func (s *Server) Start(addr string) error {
-	return http.ListenAndServe(addr, s.router)
+	//return http.ListenAndServe(addr, s.router)
+	// service name = "go-backend" (можете назвать как хотите)
+	h := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
+	return http.ListenAndServe(addr, h)
 }
 
 // getPresignedURL - хендлер для получения presigned URL
