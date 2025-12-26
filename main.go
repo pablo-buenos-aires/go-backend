@@ -528,7 +528,8 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.corsMiddleware)
 
 	// Public health endpoint
-	s.router.HandleFunc("/health", s.healthCheck).Methods("GET", "OPTIONS")
+	// хэндлер health не оборачиваем в xray, он в Start
+	//s.router.HandleFunc("/health", s.healthCheck).Methods("GET", "OPTIONS")
 
 	// Authenticated API routes
 	api := s.router.PathPrefix("/api").Subrouter()
@@ -651,8 +652,14 @@ func (s *Server) sendError(w http.ResponseWriter, message string, status int) {
 func (s *Server) Start(addr string) error {
 	//return http.ListenAndServe(addr, s.router)
 	// service name = "go-backend" (можете назвать как хотите)
-	h := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
-	return http.ListenAndServe(addr, h)
+	// НЕ оборачиваем health в xray
+	s.router.HandleFunc("/health", s.healthCheck)
+
+	traced := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
+	return http.ListenAndServe(addr, traced)
+
+	//h := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
+	//return http.ListenAndServe(addr, h)
 }
 
 // getPresignedURL - хендлер для получения presigned URL
