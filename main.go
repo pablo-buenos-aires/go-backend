@@ -584,7 +584,7 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 		// индексируемая метка
 		xray.AddAnnotation(ctx, "op", "get_profile")
 
-		log.Println("GetProfile call")
+		log.Println("GetProfile call in Capture(...)")
 
 		var user *User
 		err := xray.Capture(ctx, "DB:GetOrCreateUser", func(ctx context.Context) error {
@@ -645,19 +645,27 @@ func (s *Server) sendError(w http.ResponseWriter, message string, status int) {
 }
 
 func (s *Server) Start(addr string) error {
-	//return http.ListenAndServe(addr, s.router)
-
 	//Health пробрасываем без X-Ray, остальное — через X-Ray обёртку
 	root := http.NewServeMux()
 	root.HandleFunc("/health", s.healthCheck)
 
 	traced := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
-	root.Handle("/api/", traced) // все /api/ идут через X-Ray
+
+	root.Handle("/api/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			// те же заголовки, что в corsMiddleware
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		traced.ServeHTTP(w, r)
+	}))
 
 	return http.ListenAndServe(addr, root)
-
-	//h := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
-	//return http.ListenAndServe(addr, h)
 }
 
 // getPresignedURL - хендлер для получения presigned URL
