@@ -111,7 +111,7 @@ type CognitoClaims struct {
 
 func NewCognitoJWTValidator(region, userPoolID string) (*CognitoJWTValidator, error) {
 	if region == "" || userPoolID == "" {
-		return nil, errors.New("region and userPoolID are required")
+		return nil, errors.New("region  and userPoolID are required")
 	}
 
 	validator := &CognitoJWTValidator{
@@ -583,7 +583,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	claims := ctx.Value("claims").(*CognitoClaims)
-
+	// ошибка игнорируется, т.к. обработка внутри функции
 	_ = xray.Capture(ctx, "GetProfile", func(ctx context.Context) error {
 		// индексируемая метка
 		xray.AddAnnotation(ctx, "op", "get_profile")
