@@ -651,12 +651,17 @@ func (s *Server) sendError(w http.ResponseWriter, message string, status int) {
 
 func (s *Server) Start(addr string) error {
 	//return http.ListenAndServe(addr, s.router)
-	// service name = "go-backend" (можете назвать как хотите)
+	// service name = "go-backend"
 	// НЕ оборачиваем health в xray
-	s.router.HandleFunc("/health", s.healthCheck)
+
+	// Health пробрасываем без X-Ray, остальное — через X-Ray обёртку
+	root := http.NewServeMux()
+	root.HandleFunc("/health", s.healthCheck)
 
 	traced := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
-	return http.ListenAndServe(addr, traced)
+	root.Handle("/", traced)
+
+	return http.ListenAndServe(addr, root)
 
 	//h := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
 	//return http.ListenAndServe(addr, h)
