@@ -670,38 +670,40 @@ func (s *Server) Start(addr string) error {
 
 // getPresignedURL - хендлер для получения presigned URL
 func (s *Server) getPresignedURL(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value("claims").(*CognitoClaims)
-	log.Printf("[API] GetPresignedURL request from user: %s", claims.Sub)
+	ctx := r.Context()
+	claims := ctx.Value("claims").(*CognitoClaims)
 
-	// Парсинг запроса
-	var req PresignedURLRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[ERROR] Failed to decode request: %v", err)
-		s.sendError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
+	_ = xray.Capture(ctx, "GetPresignedURL", func(ctx context.Context) error {
+		var req PresignedURLRequest
+		log.Printf("- GetPresignedURL request (Captured)")
+		xray.AddAnnotation(ctx, "op", "get_presigned_url")
 
-	// Валидация входных данных
-	if req.FileName == "" {
-		s.sendError(w, "file_name is required", http.StatusBadRequest)
-		return
-	}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.sendError(w, "Invalid request body", http.StatusBadRequest)
+			return nil
+		}
+		if req.FileName == "" || req.ContentType == "" {
+			s.sendError(w, "file_name and content_type are required", http.StatusBadRequest)
+			return nil
+		}
 
-	if req.ContentType == "" {
-		s.sendError(w, "content_type is required", http.StatusBadRequest)
-		return
-	}
+		var resp *PresignedURLResponse // ответ с presigned URL
+		// ошибка игнорируется, т.к. обработка внутри функции
+		if err := xray.Capture(ctx, "S3:GeneratePresignedURL", func(ctx context.Context) error {
+			r, err := s.s3.GeneratePresignedURL(ctx, claims.Sub, req.FileName, req.ContentType)
+			if err != nil {
+				return err
+			}
+			resp = r
+			return nil
+		}); err != nil {
+			s.sendError(w, "Failed to generate presigned URL: "+err.Error(), http.StatusBadRequest)
+			return nil
+		}
 
-	// Генерация presigned URL
-	response, err := s.s3.GeneratePresignedURL(r.Context(), claims.Sub, req.FileName, req.ContentType)
-	if err != nil {
-		log.Printf("[ERROR] Failed to generate presigned URL: %v", err)
-		s.sendError(w, fmt.Sprintf("Failed to generate presigned URL: %s", err.Error()), http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("[SUCCESS] Presigned URL generated for user: %s", claims.Sub)
-	s.sendJSON(w, response, http.StatusOK)
+		s.sendJSON(w, resp, http.StatusOK)
+		return nil
+	})
 }
 
 // confirmPhotoUpload - подтверждение успешной загрузки фото
