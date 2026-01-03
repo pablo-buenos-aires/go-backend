@@ -52,7 +52,7 @@ jobs:
     #           -o task-definition.json
     #     echo "Task definition downloaded successfully"
     #     ls -la task-definition.json
-    #     echo "--- Content preview:"
+    #     echo "--- Content preview:"  
     #     head -n 13 task-definition.json
 
     # Configure AWS credentials (OIDC)
