@@ -23,7 +23,7 @@ jobs:
 
   deploy: 
     runs-on: ubuntu-latest
-    #needs: [quality]   # <-- ДЕПЛОЙ ТОЛЬКО ПОСЛЕ QUALITY 
+    #needs: [quality]   # <-- ДЕПЛОЙ ТОЛЬКО  ПОСЛЕ QUALITY 
     env:
         ECR_REPO: ${{ vars.ECR_REPO }}  
         IMAGE_TAG: v${{ github.run_number }}
