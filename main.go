@@ -28,7 +28,7 @@ import (
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 
-	_ "github.com/lib/pq" // <-- ВАЖНО: регистрируем драйвер postgres
+	_ "github.com/lib/pq" // <-- ВАЖНО:  регистрируем драйвер postgres
 )
 
 func main() {
