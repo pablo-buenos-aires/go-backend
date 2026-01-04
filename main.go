@@ -39,8 +39,8 @@ func main() {
 
 	// Инициализация БД
 	db, err := InitDB()
-	if err != nil { 
-		log.Fatalf("Failed to initialize database %q: %v", os.Getenv("DB_NAME"), err)
+	if err != nil {
+		log.Fatalf("Failed to  initialize database %q: %v", os.Getenv("DB_NAME"), err)
 	}
 	defer db.Close() // по завершению функции выполнится
 
