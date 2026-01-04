@@ -34,7 +34,7 @@ import (
 func main() {
 	// Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env  file found, значения будут браться из окружения")
+		log.Println("No .env   file found, значения будут браться из окружения")
 	}
 
 	// Инициализация БД
