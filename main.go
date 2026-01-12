@@ -72,7 +72,7 @@ func main() {
 	// for debugging purposes
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("PANIC: %v\n%s", r, debug.Stack())
+			log.Printf("PANIC : %v\n%s", r, debug.Stack())
 			os.Exit(2)
 		}
 	}()
