@@ -1,7 +1,7 @@
 # Dockerfile для Go backend (multistage) — оптимизирован для деплоя на AWS ECS
 # Использование distroless для минимального runtime-образа
 # ARG позволяет менять версию Go при сборке образа
-ARG GO_VERSION=1.22 
+ARG GO_VERSION=1.23
 FROM golang:${GO_VERSION}-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 
