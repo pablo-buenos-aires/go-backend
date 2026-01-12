@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,10 +70,9 @@ func init() {
 
 func main() {
 	// for debugging purposes
-	log.Println("APP STARTING")
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("PANIC: %+v\n", r)
+			log.Printf("PANIC: %v\n%s", r, debug.Stack())
 			os.Exit(2)
 		}
 	}()
