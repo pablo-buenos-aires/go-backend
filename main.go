@@ -68,6 +68,15 @@ func init() {
 }
 
 func main() {
+	// for debugging purposes
+	log.Println("APP STARTING")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("PANIC: %+v\n", r)
+			os.Exit(2)
+		}
+	}()
+
 	// Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env   file found, значения будут браться из окружения")
