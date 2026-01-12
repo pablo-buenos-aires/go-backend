@@ -11,9 +11,12 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,11 +28,44 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 
 	_ "github.com/lib/pq" // <-- ВАЖНО: регистрируем драйвер postgres
 )
+
+var (
+	backendRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "backend",
+			Name:      "requests_total",
+			Help:      "Total number of handled requests.",
+		},
+		[]string{"handler", "method", "status"},
+	)
+	backendRequestDurationSeconds = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "backend",
+			Name:      "request_duration_seconds",
+			Help:      "Request duration in seconds.",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{"handler", "method"},
+	)
+	backendMemorySysBytes = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: "backend",
+			Name:      "memory_sys_bytes",
+			Help:      "System memory from runtime.MemStats.Sys.",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(backendRequestsTotal, backendRequestDurationSeconds, backendMemorySysBytes)
+}
 
 func main() {
 	// Загрузка переменных окружения
@@ -506,6 +542,23 @@ type UpdateProfileRequest struct {
 	Bio  string `json:"bio"`
 }
 
+type statusResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusResponseWriter) Write(p []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.ResponseWriter.Write(p)
+}
+
 func NewServer(db *sql.DB, s3 *S3Client, validator *CognitoJWTValidator) *Server {
 	s := &Server{
 		db:        db,
@@ -577,6 +630,13 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	mw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	defer func() {
+		recordHandlerMetrics("getProfile", r.Method, mw.status, start)
+	}()
+
+	w = mw
 	ctx := r.Context()
 	claims := ctx.Value("claims").(*CognitoClaims)
 	// ошибка игнорируется, т.к. обработка внутри функции
@@ -605,6 +665,13 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 	}) // end capture
 }
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	mw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	defer func() {
+		recordHandlerMetrics("updateProfile", r.Method, mw.status, start)
+	}()
+
+	w = mw
 	claims := r.Context().Value("claims").(*CognitoClaims)
 	log.Println("UpdateProfile call")
 
@@ -648,6 +715,7 @@ func (s *Server) Start(addr string) error {
 	//Health пробрасываем без X-Ray, остальное — через X-Ray обёртку
 	root := http.NewServeMux()
 	root.HandleFunc("/health", s.healthCheck)
+	root.Handle("/metrics", s.metricsHandler())
 
 	traced := xray.Handler(xray.NewFixedSegmentNamer("go-backend"), s.router)
 
@@ -668,8 +736,45 @@ func (s *Server) Start(addr string) error {
 	return http.ListenAndServe(addr, root)
 }
 
+func (s *Server) metricsHandler() http.Handler {
+	promHandler := promhttp.Handler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isLocalAddr(r.RemoteAddr) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		backendMemorySysBytes.Set(float64(memStats.Sys))
+
+		promHandler.ServeHTTP(w, r)
+	})
+}
+
+func isLocalAddr(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+
+	return host == "127.0.0.1" || host == "::1"
+}
+
+func recordHandlerMetrics(handlerName, method string, status int, start time.Time) {
+	backendRequestsTotal.WithLabelValues(handlerName, method, strconv.Itoa(status)).Inc()
+	backendRequestDurationSeconds.WithLabelValues(handlerName, method).Observe(time.Since(start).Seconds())
+}
+
 // getPresignedURL - хендлер для получения presigned URL
 func (s *Server) getPresignedURL(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	mw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	defer func() {
+		recordHandlerMetrics("getPresignedURL", r.Method, mw.status, start)
+	}()
+
+	w = mw
 	ctx := r.Context()
 	claims := ctx.Value("claims").(*CognitoClaims)
 
@@ -708,6 +813,13 @@ func (s *Server) getPresignedURL(w http.ResponseWriter, r *http.Request) {
 
 // confirmPhotoUpload - подтверждение успешной загрузки фото
 func (s *Server) confirmPhotoUpload(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	mw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	defer func() {
+		recordHandlerMetrics("confirmPhotoUpload", r.Method, mw.status, start)
+	}()
+
+	w = mw
 	claims := r.Context().Value("claims").(*CognitoClaims)
 	log.Printf("[API] ConfirmPhotoUpload request from user: %s", claims.Sub)
 
