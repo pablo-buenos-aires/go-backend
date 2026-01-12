@@ -59,7 +59,7 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: "backend",
 			Name:      "memory_sys_bytes",
-			Help:      "System memory from runtime.MemStats.Sys.",
+			Help:      "System memory from  runtime.MemStats.Sys.",
 		},
 	)
 )
